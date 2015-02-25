@@ -1,82 +1,32 @@
-#  copyright (c) 2010 Espressif System
-#
-ifndef PDIR
-
-endif
-
 #############################################################
-# Select compile
 #
-ifeq ($(OS),Windows_NT)
-# WIN32
-# We are under windows.
-	ifeq ($(XTENSA_CORE),lx106)
-		# It is xcc
-		AR = xt-ar
-		CC = xt-xcc
-		NM = xt-nm
-		CPP = xt-cpp
-		OBJCOPY = xt-objcopy
-		#MAKE = xt-make
-		CCFLAGS += -Os --rename-section .text=.irom0.text --rename-section .literal=.irom0.literal
-	else 
-		# It is gcc, may be cygwin
-		# Can we use -fdata-sections?
-		CCFLAGS += -Os -ffunction-sections -fno-jump-tables
-		AR = xtensa-lx106-elf-ar
-		CC = xtensa-lx106-elf-gcc
-		NM = xtensa-lx106-elf-nm
-		CPP = xtensa-lx106-elf-cpp
-		OBJCOPY = xtensa-lx106-elf-objcopy
-	endif
-	FIRMWAREDIR = ..\\bin\\
-	ifndef COMPORT
-		ESPPORT = com1
-	else
-		ESPPORT = $(COMPORT)
-	endif
-    ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
-# ->AMD64
-    endif
-    ifeq ($(PROCESSOR_ARCHITECTURE),x86)
-# ->IA32
-    endif
-else
-# We are under other system, may be Linux. Assume using gcc.
-	# Can we use -fdata-sections?
-	ifndef COMPORT
-		ESPPORT = /dev/ttyUSB0
-	else
-		ESPPORT = $(COMPORT)
-	endif
-	CCFLAGS += -Os -ffunction-sections -fno-jump-tables
-	AR = xtensa-lx106-elf-ar
-	CC = xtensa-lx106-elf-gcc
-	NM = xtensa-lx106-elf-nm
-	CPP = xtensa-lx106-elf-cpp
-	OBJCOPY = xtensa-lx106-elf-objcopy
-	FIRMWAREDIR = ../bin/
-    UNAME_S := $(shell uname -s)
-    ifeq ($(UNAME_S),Linux)
-# LINUX
-    endif
-    ifeq ($(UNAME_S),Darwin)
-# OSX
-    endif
-    UNAME_P := $(shell uname -p)
-    ifeq ($(UNAME_P),x86_64)
-# ->AMD64
-    endif
-    ifneq ($(filter %86,$(UNAME_P)),)
-# ->IA32
-    endif
-    ifneq ($(filter arm%,$(UNAME_P)),)
-# ->ARM
-    endif
-endif
+# Root Level Makefile
+#
+# (c) by CHERTS <sleuthhound@gmail.com>
+#
 #############################################################
-ESPTOOL = ../tools/esptool.py
 
+# Base directory for the compiler
+XTENSA_TOOLS_ROOT ?= c:/Espressif/xtensa-lx106-elf/bin
+
+# base directory of the ESP8266 SDK package, absolute
+SDK_BASE	?= c:/Espressif/ESP8266_SDK
+
+# select which tools to use as compiler, librarian and linker
+CC := $(XTENSA_TOOLS_ROOT)/xtensa-lx106-elf-gcc
+AR := $(XTENSA_TOOLS_ROOT)/xtensa-lx106-elf-ar
+LD := $(XTENSA_TOOLS_ROOT)/xtensa-lx106-elf-gcc
+NM := $(XTENSA_TOOLS_ROOT)/xtensa-lx106-elf-nm
+CPP = $(XTENSA_TOOLS_ROOT)/xtensa-lx106-elf-cpp
+OBJCOPY = $(XTENSA_TOOLS_ROOT)/xtensa-lx106-elf-objcopy
+CCFLAGS += -Os -ffunction-sections -fno-jump-tables
+
+FIRMWAREDIR = ..//bin//
+
+SDK_TOOLS	?= c:/Espressif/utils
+ESPTOOL		?= $(SDK_TOOLS)/esptool.exe
+ESPTOOL-CK	?= $(SDK_TOOLS)/esptool-ck.exe
+ESPPORT		?= COM1
 
 CSRCS ?= $(wildcard *.c)
 ASRCs ?= $(wildcard *.s)
@@ -119,11 +69,6 @@ CCFLAGS += 			\
 CFLAGS = $(CCFLAGS) $(DEFINES) $(EXTRA_CCFLAGS) $(INCLUDES)
 DFLAGS = $(CCFLAGS) $(DDEFINES) $(EXTRA_CCFLAGS) $(INCLUDES)
 
-
-#############################################################
-# Functions
-#
-
 define ShortcutRule
 $(1): .subdirs $(2)/$(1)
 endef
@@ -149,12 +94,8 @@ endef
 
 $(BINODIR)/%.bin: $(IMAGEODIR)/%.out
 	@mkdir -p $(BINODIR)
-	$(ESPTOOL) elf2image $< -o $(FIRMWAREDIR)
-
-#############################################################
-# Rules base
-# Should be done in top-level makefile only
-#
+	$(ESPTOOL-CK) -eo $< -bo $(FIRMWAREDIR)0x00000.bin -bs .text -bs .data -bs .rodata -bc -ec
+	$(ESPTOOL-CK) -eo $< -es .irom0.text $(FIRMWAREDIR)0x10000.bin -ec
 
 all:	.subdirs $(OBJS) $(OLIBS) $(OIMAGES) $(OBINS) $(SPECIAL_MKTARGETS)
 
@@ -166,18 +107,23 @@ clobber: $(SPECIAL_CLOBBER)
 	$(foreach d, $(SUBDIRS), $(MAKE) -C $(d) clobber;)
 	$(RM) -r $(ODIR)
 
-flash: 
+flash:
+	$(foreach d, $(SUBDIRS), $(MAKE) -C $(d) progr;)
+
+progr: all
 ifndef PDIR
 	$(MAKE) -C ./app flash
 else
-	$(ESPTOOL) --port $(ESPPORT) write_flash 0x00000 $(FIRMWAREDIR)0x00000.bin 0x10000 $(FIRMWAREDIR)0x10000.bin
+	$(ESPTOOL) -p $(ESPPORT) -b 256000 write_flash 0x00000 $(FIRMWAREDIR)0x00000.bin 0x10000 $(FIRMWAREDIR)0x10000.bin
+	$(ESPTOOL) -p $(ESPPORT) write_flash 0x7c000 $(FIRMWAREDIR)esp_init_data_default.bin 0x7e000 $(FIRMWAREDIR)blank.bin
 endif
+
+luainit:
+	$(SDK_TOOLS)/nodemcutil.exe -p $(ESPPORT) -s init.lua
+	$(SDK_TOOLS)/nodemcutil.exe -p $(ESPPORT) -rt
 
 .subdirs:
 	@set -e; $(foreach d, $(SUBDIRS), $(MAKE) -C $(d);)
-
-#.subdirs:
-#	$(foreach d, $(SUBDIRS), $(MAKE) -C $(d))
 
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),clobber)
@@ -231,18 +177,6 @@ $(foreach lib,$(GEN_LIBS),$(eval $(call MakeLibrary,$(basename $(lib)))))
 
 $(foreach image,$(GEN_IMAGES),$(eval $(call MakeImage,$(basename $(image)))))
 
-#############################################################
-# Recursion Magic - Don't touch this!!
-#
-# Each subtree potentially has an include directory
-#   corresponding to the common APIs applicable to modules
-#   rooted at that subtree. Accordingly, the INCLUDE PATH
-#   of a module can only contain the include directories up
-#   its parent path, and not its siblings
-#
-# Required for each makefile to inherit from the parent
-#
-
 INCLUDES := $(INCLUDES) -I $(PDIR)include -I $(PDIR)include/$(TARGET)
-PDIR := ../$(PDIR)
-sinclude $(PDIR)Makefile
+#PDIR := ../$(PDIR)
+#sinclude $(PDIR)Makefile

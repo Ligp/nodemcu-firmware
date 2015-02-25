@@ -39,6 +39,8 @@ endif
 INCLUDES := $(INCLUDES) -I $(PDIR)include
 INCLUDES += -I ./
 INCLUDES += -I ../libc
+INCLUDES += -I ../easygpio
+INCLUDES += -I ../pcd8544
 INCLUDES += -I ../mqtt
 INCLUDES += -I ../lua
 INCLUDES += -I ../platform

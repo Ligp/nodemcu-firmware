@@ -26,6 +26,7 @@ SUBDIRS=    \
 	driver	\
 	lwip	\
 	json	\
+	ssl	\
 	upgrade	\
 	platform	\
 	libc 	\
@@ -33,6 +34,8 @@ SUBDIRS=    \
 	mqtt	\
 	smart 	\
 	wofs 	\
+	easygpio 	\
+	pcd8544 	\
 	modules	\
 	spiffs
 
@@ -41,13 +44,12 @@ endif # } PDIR
 APPDIR = .
 LDDIR = ../ld
 
-CCFLAGS += -Os
-
 TARGET_LDFLAGS =		\
 	-nostdlib		\
 	-Wl,-EL \
 	--longcalls \
 	--text-section-literals
+
 
 ifeq ($(FLAVOR),debug)
     TARGET_LDFLAGS += -g -O2
@@ -72,10 +74,13 @@ COMPONENTS_eagle.app.v6 = \
 	driver/libdriver.a	\
 	lwip/liblwip.a	\
 	json/libjson.a	\
+	ssl/libssl.a	\
 	upgrade/libupgrade.a	\
 	platform/libplatform.a	\
 	libc/liblibc.a 	\
 	lua/liblua.a 	\
+	pcd8544/pcd8544_func.a 	\
+	easygpio/easygpio.a 	\
 	mqtt/mqtt.a 	\
 	smart/smart.a 	\
 	wofs/wofs.a 	\
@@ -83,7 +88,7 @@ COMPONENTS_eagle.app.v6 = \
 	modules/libmodules.a
 
 LINKFLAGS_eagle.app.v6 = \
-	-L../lib        \
+	-L${SDK_BASE}/lib        \
 	-nostdlib	\
     -T$(LD_FILE)   \
 	-Wl,--no-check-sections	\
@@ -100,7 +105,6 @@ LINKFLAGS_eagle.app.v6 = \
 	-lmain	\
 	-ljson	\
 	-lsmartconfig	\
-	-lssl	\
 	$(DEP_LIBS_eagle.app.v6)					\
 	-Wl,--end-group
 

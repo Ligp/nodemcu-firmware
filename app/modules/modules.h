@@ -117,6 +117,23 @@
 #define ROM_MODULES_BIT
 #endif
 
+#if defined(LUA_USE_MODULES_WS2812)
+#define MODULES_WS2812 "ws2812"
+#define ROM_MODULES_WS2812 \
+		_ROM(MODULES_WS2812, luaopen_ws2812, ws2812_map)
+#else
+#define ROM_MODULES_WS2812
+#endif
+
+#if defined(LUA_USE_MODULES_PCD8544)
+#define MODULES_PCD8544 "pcd8544"
+#define ROM_MODULES_PCD8544 \
+		_ROM(MODULES_PCD8544, luaopen_pcd8544, pcd8544_map)
+#else
+#define ROM_MODULES_PCD8544
+#endif
+
+
 #define LUA_MODULES_ROM      \
         ROM_MODULES_GPIO    \
         ROM_MODULES_PWM		\
@@ -131,7 +148,9 @@
         ROM_MODULES_ADC     \
         ROM_MODULES_UART    \
         ROM_MODULES_OW      \
-        ROM_MODULES_BIT
+        ROM_MODULES_BIT		\
+		ROM_MODULES_WS2812	\
+		ROM_MODULES_PCD8544
 
 #endif
 

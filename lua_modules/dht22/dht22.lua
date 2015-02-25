@@ -62,30 +62,32 @@ function M.read(pin)
 
   --DHT data acquired, process.
   for i = 1, 16, 1 do
-    if (bitStream[i] > 4) then
+    if (bitStream[i] > 3) then
       humidity = humidity + 2 ^ (16 - i)
     end
   end
   for i = 1, 16, 1 do
-    if (bitStream[i + 16] > 4) then
+    if (bitStream[i + 16] > 3) then
       temperature = temperature + 2 ^ (16 - i)
     end
   end
   for i = 1, 8, 1 do
-    if (bitStream[i + 32] > 4) then
+    if (bitStream[i + 32] > 3) then
       checksum = checksum + 2 ^ (8 - i)
     end
   end
 
-  checksumTest=((humidity / 256) + (humidity % 256) + (temperature / 256) + (temperature % 256)) % 256
+  checksumTest = (bit.band(humidity, 0xFF) + bit.rshift(humidity, 8) + bit.band(temperature, 0xFF) + bit.rshift(temperature, 8))
+  checksumTest = bit.band(checksumTest, 0xFF)
 
   if temperature > 0x8000 then
     -- convert to negative format
     temperature = -(temperature - 0x8000)
   end
 
-  if checksum ~= checksumTest then
-    humidity = -1
+  -- conditions compatible con float point and integer
+  if (checksumTest - checksum >= 1) or (checksum - checksumTest >= 1) then
+    humidity = nil
   end
 end
 
